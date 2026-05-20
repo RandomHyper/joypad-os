@@ -171,7 +171,7 @@
   #define CFG_TUD_XID_EP_BUFSIZE    32  // XID endpoint buffer size
 
   // Xbox 360 (XInput) mode support
-  #define CFG_TUD_XINPUT            1   // Enable XInput class driver
+  #define CFG_TUD_XINPUT            4   // Enable XInput class driver (4 controllers for Xbox 360)
   #define CFG_TUD_XINPUT_EP_BUFSIZE 32  // XInput endpoint buffer size
 
   // GameCube Adapter mode support
