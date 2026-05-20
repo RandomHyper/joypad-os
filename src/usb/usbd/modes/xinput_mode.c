@@ -1,6 +1,8 @@
 // xinput_mode.c - Xbox 360 XInput USB device mode
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2024 Robert Dale Smith
+//
+// Multi-controller mode: each player_index (0-3) maps to an Xbox 360 player slot
 
 #include "tusb.h"
 #include "../usbd_mode.h"
@@ -60,7 +62,11 @@ static void xinput_mode_init(void)
 
 static bool xinput_mode_is_ready(void)
 {
-    return tud_xinput_ready();
+    // Check if any slot is ready (for multi-player support)
+    for (int i = 0; i < 4; i++) {
+        if (tud_xinput_ready_slot(i)) return true;
+    }
+    return false;
 }
 
 static bool xinput_mode_send_report(uint8_t player_index,
@@ -68,8 +74,10 @@ static bool xinput_mode_send_report(uint8_t player_index,
                                      const profile_output_t* profile_out,
                                      uint32_t buttons)
 {
-    (void)player_index;
     (void)event;
+
+    // Clamp player_index to 0-3
+    uint8_t slot = (player_index >= 4) ? 3 : player_index;
 
     // Digital buttons byte 0 (DPAD, Start, Back, L3, R3)
     xinput_report.buttons0 = 0;
@@ -105,7 +113,11 @@ static bool xinput_mode_send_report(uint8_t player_index,
     xinput_report.stick_rx = convert_axis_to_s16(profile_out->right_x);
     xinput_report.stick_ry = convert_axis_to_s16_inverted(profile_out->right_y);
 
-    return tud_xinput_send_report(&xinput_report);
+    // Send to the correct player slot based on player_index
+    // player_index 0 -> Xbox 360 Player 1 (slot 0)
+    // player_index 1 -> Xbox 360 Player 2 (slot 1)
+    // etc.
+    return tud_xinput_send_report_slot(slot, &xinput_report);
 }
 
 static void xinput_mode_task(void)
@@ -113,9 +125,11 @@ static void xinput_mode_task(void)
     // Process XSM3 auth state machine (Xbox 360 console authentication)
     tud_xinput_xsm3_process();
 
-    // Check for rumble output from host
-    if (tud_xinput_get_output(&xinput_output)) {
-        xinput_output_available = true;
+    // Check for rumble output from host (all slots)
+    for (int slot = 0; slot < 4; slot++) {
+        if (tud_xinput_get_output_slot(slot, &xinput_output)) {
+            xinput_output_available = true;
+        }
     }
 }
 
@@ -157,7 +171,7 @@ static const usbd_class_driver_t* xinput_mode_get_class_driver(void)
 // ============================================================================
 
 const usbd_mode_t xinput_mode = {
-    .name = "XInput",
+    .name = "XInput (4-Player)",
     .mode = USB_OUTPUT_MODE_XINPUT,
 
     .get_device_descriptor = xinput_mode_get_device_descriptor,
@@ -168,7 +182,7 @@ const usbd_mode_t xinput_mode = {
     .send_report = xinput_mode_send_report,
     .is_ready = xinput_mode_is_ready,
 
-    .handle_output = NULL,  // Output handled via tud_xinput_get_output
+    .handle_output = NULL,  // Output handled via tud_xinput_get_output_slot
     .get_rumble = xinput_mode_get_rumble,
     .get_feedback = xinput_mode_get_feedback,
     .get_report = NULL,
