@@ -5,6 +5,8 @@
 // Custom USB device class driver implementing Xbox 360 XInput protocol.
 // XInput uses vendor class 0xFF, subclass 0x5D, protocol 0x01.
 //
+// Multi-controller support: up to 4 XInput interfaces for Xbox 360 multiplayer
+//
 // Reference: GP2040-CE, OGX-Mini (MIT/BSD-3-Clause)
 
 #ifndef TUD_XINPUT_H
@@ -62,22 +64,39 @@ typedef enum {
 // XINPUT API
 // ============================================================================
 
-// Check if XInput device is ready to send a report
+// ---- Legacy Single-Slot API (backward compatible) ----
+
+// Check if XInput device is ready to send a report (slot 0)
 bool tud_xinput_ready(void);
 
-// Send gamepad input report (20 bytes)
+// Send gamepad input report (20 bytes) to slot 0
 // Returns true if transfer was queued successfully
 bool tud_xinput_send_report(const xinput_in_report_t* report);
 
-// Get rumble/LED output report (8 bytes)
+// Get rumble/LED output report (8 bytes) from slot 0
 // Call this to retrieve the latest rumble/LED values from host
 // Returns true if output data is available
 bool tud_xinput_get_output(xinput_out_report_t* output);
 
-// Initialize XSM3 authentication state
+// ---- Multi-Slot API (for 4-player support) ----
+
+// Check if XInput device is ready on a specific slot (0-3)
+bool tud_xinput_ready_slot(uint8_t slot);
+
+// Send gamepad input report to a specific player slot (0-3)
+// Returns true if transfer was queued successfully
+bool tud_xinput_send_report_slot(uint8_t slot, const xinput_in_report_t* report);
+
+// Get rumble/LED output report for a specific player slot (0-3)
+// Returns true if output data is available
+bool tud_xinput_get_output_slot(uint8_t slot, xinput_out_report_t* output);
+
+// ---- Authentication ----
+
+// Initialize XSM3 authentication state for all slots
 void tud_xinput_xsm3_init(void);
 
-// Process pending XSM3 auth (call from mode task loop)
+// Process pending XSM3 auth for all slots (call from mode task loop)
 void tud_xinput_xsm3_process(void);
 
 // Handle vendor control requests for XSM3 auth
